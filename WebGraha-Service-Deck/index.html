@@ -90,6 +90,14 @@ html,body{margin:0;width:100%;height:100%;background:#020208;overflow:hidden;tou
 .progress{position:fixed;left:0;top:0;height:3px;background:var(--accent);width:0;z-index:20;transition:width .4s}
 .fsbtn{all:unset;position:fixed;right:14px;bottom:14px;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(10,17,40,.72);border:1px solid rgba(255,255,255,.18);color:#CBD5E1;font-size:16px;z-index:30;opacity:0;pointer-events:none;transition:opacity .3s,background .2s;backdrop-filter:blur(6px);-webkit-tap-highlight-color:transparent}
 body.show-nav .fsbtn{opacity:1;pointer-events:auto}.fsbtn:hover{background:rgba(110,231,183,.22);color:#fff}
+.slnav{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:5px;border-radius:999px;background:rgba(10,17,40,.72);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(6px);z-index:30;opacity:0;pointer-events:none;transition:opacity .3s}
+body.show-nav .slnav{opacity:1;pointer-events:auto}
+.slnav button{all:unset;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#CBD5E1;font-size:14px;transition:background .2s,color .2s;-webkit-tap-highlight-color:transparent}
+.slnav button:hover{background:rgba(110,231,183,.22);color:#fff}
+.slnav button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.slnav button:disabled{opacity:.3;pointer-events:none}
+.slnav .cnt{min-width:66px;text-align:center;font:12px var(--mono);color:#94A3B8;letter-spacing:.08em}
+.slnav .cnt b{color:var(--accent);font-weight:400}
 .notes{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);max-width:min(860px,90vw);padding:14px 18px;border-radius:14px;background:rgba(10,17,40,.92);border:1px solid rgba(255,255,255,.16);font:13px/1.55 var(--body);color:#CBD5E1;z-index:25;display:none}
 .notes.on{display:block}.notes b{color:var(--accent);font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;display:block;margin-bottom:6px}
 .help{position:fixed;top:12px;right:14px;font:11px var(--mono);color:#64748B;z-index:20;opacity:0;transition:opacity .3s;letter-spacing:.06em}
@@ -101,7 +109,7 @@ body:hover .help,body.show-nav .help{opacity:1}
 @media print{@page{size:1280px 720px;margin:0}html,body{overflow:visible;height:auto;background:#fff}
 .stage{position:static;transform:none!important;box-shadow:none;height:auto;width:1280px;overflow:visible}
 .slide{position:relative;height:720px;opacity:1;visibility:visible;page-break-after:always;break-after:page;overflow:hidden}
-.help,.progress,.notes,.lightbox,.fsbtn{display:none!important}
+.help,.progress,.notes,.lightbox,.fsbtn,.slnav{display:none!important}
 .slide .inner{animation:none}.gauge .arc,.barfill{transition:none}}
 </style>
 </head>
@@ -129,6 +137,11 @@ body:hover .help,body.show-nav .help{opacity:1}
 </div>
 <div class="help">← → navigate · F fullscreen · N notes · click images to zoom</div>
 <button class="fsbtn" id="fs" aria-label="Toggle fullscreen" title="Fullscreen (F)"><i class="fa-solid fa-expand"></i></button>
+<nav class="slnav" aria-label="Slide navigation">
+  <button id="prev" aria-label="Previous slide" title="Previous (←)"><i class="fa-solid fa-chevron-left"></i></button>
+  <span class="cnt" id="cnt" aria-live="polite"><b>1</b> / 12</span>
+  <button id="next" aria-label="Next slide" title="Next (→)"><i class="fa-solid fa-chevron-right"></i></button>
+</nav>
 <div class="notes" id="notes"></div>
 <div class="lightbox" id="lb"><img alt=""></div>
 <script>
@@ -144,12 +157,14 @@ function go(i,push=true){
   document.getElementById('progress').style.width=((i+1)/N*100)+'%';
   const n=NOTES[i+1];const nb=document.getElementById('notes');nb.innerHTML='<b>Notes · slide '+(i+1)+'</b>'+(n||'—');
   if(push)history.replaceState(null,'','#'+(i+1));
+  document.getElementById('cnt').innerHTML='<b>'+(i+1)+'</b> / '+N;
+  document.getElementById('prev').disabled=i===0;document.getElementById('next').disabled=i===N-1;
 }
 const nextS=()=>go(cur+1),prevS=()=>go(cur-1);
 const toggleFs=()=>{const d=document,e=d.documentElement;if(d.fullscreenElement||d.webkitFullscreenElement){(d.exitFullscreen||d.webkitExitFullscreen).call(d)}else{(e.requestFullscreen||e.webkitRequestFullscreen).call(e)}};
 addEventListener('keydown',e=>{
   if(document.getElementById('lb').classList.contains('on')){if(e.key==='Escape')document.getElementById('lb').classList.remove('on');return}
-  if(e.target.tagName==='VIDEO'&&(e.key===' '||e.key==='Enter'))return;
+  if((e.target.tagName==='VIDEO'||e.target.closest('.slnav'))&&(e.key===' '||e.key==='Enter'))return;
   if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();nextS()}
   else if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();prevS()}
   else if(e.key==='Home')go(0);else if(e.key==='End')go(N-1);
@@ -164,6 +179,8 @@ let hideT;const showNav=()=>{document.body.classList.add('show-nav');clearTimeou
 const fsb=document.getElementById('fs'),de=document.documentElement;
 if(!(de.requestFullscreen||de.webkitRequestFullscreen))fsb.style.display='none';
 fsb.addEventListener('click',e=>{e.stopPropagation();toggleFs()});
+document.getElementById('prev').addEventListener('click',e=>{e.stopPropagation();prevS();showNav()});
+document.getElementById('next').addEventListener('click',e=>{e.stopPropagation();nextS();showNav()});
 document.addEventListener('fullscreenchange',()=>{fsb.innerHTML='<i class="fa-solid fa-'+(document.fullscreenElement?'compress':'expand')+'"></i>'});
 go((parseInt(location.hash.slice(1))||1)-1,false);
 </script>
